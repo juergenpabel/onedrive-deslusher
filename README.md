@@ -40,11 +40,13 @@ pip install -r requirements.txt
 This runs all steps one-after-the-other (browser-interactive M365 confirmation may be required for each step):  
 `./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com --datetime yyyy-mm-ddThh:mm:ssZ run`
 
-This runs all steps individually:  
-`./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com get-drives`  
-`./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com download-objects`  
-`./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com download-activities`  
-`./onedrive-deslusher.py --datetime yyyy-mm-ddThh:mm:ssZ deslush`
+This runs all steps individually:
+```
+./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com get-drives
+./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com download-objects
+./onedrive-deslusher.py --client-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --user-id username@subdomain.onmicrosoft.com download-activities
+./onedrive-deslusher.py --datetime yyyy-mm-ddThh:mm:ssZ deslush
+```
 
 Optionally, the following parameters can be used to modify the behaviour:
 * `--drive-name <name-of-onedrive-instance>` to select only a specific onedrive instance
