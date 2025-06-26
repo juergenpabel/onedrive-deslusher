@@ -4,7 +4,8 @@ from os import makedirs as os_makedirs, \
                rmdir as os_rmdir, \
                listdir as os_listdir, \
                symlink as os_symlink, \
-               rename as os_rename
+               rename as os_rename, \
+               getpid as os_getpid
 from os.path import exists as os_path_exists, \
                     abspath as os_path_abspath, \
                     isdir as os_path_isdir, \
@@ -145,7 +146,6 @@ async def command_deslush(target_directory, slushed_datetime):
                     for activity in activities:
                         if activity['datetime'] >= slushed_datetime:
                             slushed2filename[filename_path] = activity['filename']
-                            print(f"{filename_path} was slushed by onedrive ({activity['filename']})")
             if os_path_exists(f'{target_directory}/onedrive/{drive_name}-deslushed') is True:
                 shutil_rmtree(f'{target_directory}/onedrive/{drive_name}-deslushed')
             os_makedirs(f'{target_directory}/onedrive/{drive_name}-deslushed')
@@ -163,7 +163,7 @@ async def command_deslush(target_directory, slushed_datetime):
                 filename_path = f'{directory_path}/{filename_name}'
                 filename_main, filename_ext = filename_name.rsplit('.', 1)
                 if filename_path not in slushed2filename.keys():
-                    print(f"ORIGINAL: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}")
+                    #print(f"ORIGINAL: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}")
                     if os_path_exists(f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}') is False:
                         os_makedirs(f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}')
                     os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}', target_is_directory=False)
@@ -173,23 +173,33 @@ async def command_deslush(target_directory, slushed_datetime):
                     if original_filename in filename2dirs:
                         original_filename_main, original_filename_ext = original_filename.rsplit('.', 1)
                         for original_directory_path in filename2dirs[original_filename]:
+                            #print(f'DESLUSHED: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}')
                             if os_path_exists(f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}') is False:
                                 os_makedirs(f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}')
-                            print(f'DESLUSHED: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}')
                             os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}', target_is_directory=False)
                             processed_filenames.append(f'{original_directory_path}/{original_filename}')
-        deslushed_directories = {}
+        condensed_dir2count = {}
+        deslushed_dir2filename = {}
         for path in glob_iglob(f'{target_directory}/onedrive/{drive_name}-deslushed/**', recursive=True):
             onedrive_filename = path.removeprefix(f'{target_directory}/onedrive/{drive_name}-deslushed')
             if onedrive_filename in processed_filenames:
                 if os_path_isdir(path) is True:
-                    files = os_listdir(path)
-                    if len(files) == 1 and os_path_islink(f'{path}/{files[0]}') is True:
-                        deslushed_directories[path] = files[0]
-        for directory, filename in deslushed_directories.items():
-            os_rename(f'{directory}/{filename}', f'{directory}_{filename}.deslushed')
-            os_rmdir(directory)
-            os_rename(f'{directory}_{filename}.deslushed', directory)
+                    entries = os_listdir(path)
+                    entries_symlinks = []
+                    for entry in entries:
+                        if os_path_islink(f'{path}/{entry}') is True:
+                            entries_symlinks.append(entry)
+                    if len(entries_symlinks) == 1:
+                        if os_path_islink(f'{path}/{entries_symlinks[0]}') is True:
+                            deslushed_dir2filename[path] = entries_symlinks[0]
+                    elif len(entries_symlinks) > 1:
+                        condensed_dir2count[path] = len(entries_symlinks)
+        for directory, filename in deslushed_dir2filename.items():
+            directory = directory.rstrip('/')
+            os_rename(directory, f'{directory}.deslushed_{os_getpid()}')
+            os_rename(f'{directory}.deslushed_{os_getpid()}/{filename}', directory)
+            os_rmdir(f'{directory}.deslushed_{os_getpid()}')
+        print(f"Restored {len(deslushed_dir2filename.keys())} files and gathered candidates for {len(condensed_dir2count.keys())} files (with {sum(condensed_dir2count.values())} candidates in total)")
 
 
 async def main():
