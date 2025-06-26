@@ -199,7 +199,12 @@ async def command_deslush(target_directory, slushed_datetime):
             os_rename(directory, f'{directory}.deslushed_{os_getpid()}')
             os_rename(f'{directory}.deslushed_{os_getpid()}/{filename}', directory)
             os_rmdir(f'{directory}.deslushed_{os_getpid()}')
-        print(f"Restored {len(deslushed_dir2filename.keys())} files and gathered candidates for {len(condensed_dir2count.keys())} files (with {sum(condensed_dir2count.values())} candidates in total)")
+        result_files_total = sum([len(files) for files in dirpath2files.values()])
+        result_files_deslushed = len(deslushed_dir2filename.keys())
+        result_files_condensed = len(condensed_dir2count.keys())
+        result_files_candidates = sum(condensed_dir2count.values())
+        print(f"Analyzed {result_files_total} files")
+        print(f"Restored {result_files_deslushed} files and gathered candidates for {result_files_condensed} files (with {result_files_candidates} candidates in total)")
 
 
 async def main():
