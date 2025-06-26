@@ -35,6 +35,8 @@ Go to https://admin.microsoft.com and click on **Identity** (left navbar), next 
 
 ## Setup: Python environment
 ```
+git clone https://github.com/juergenpabel/onedrive-deslusher.git
+cd onedrive-deslusher
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
