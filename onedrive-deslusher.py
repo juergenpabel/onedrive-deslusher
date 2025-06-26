@@ -48,7 +48,7 @@ async def get_directory_tree(client, drive_id: str, drive_directory_id: str, dri
                 dirtree2id[path] = drive_item_child.id
                 dirtree2id.update(await get_directory_tree(client, drive_id, drive_item_child.id, path))
         if response.odata_next_link is not None:
-            response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_directory_id).children.with_url(response.odata_next_link).get(request_configuration = request_configuration)
+            response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_directory_id).children.with_url(response.odata_next_link).get()
         else:
             response = None
     return dirtree2id
@@ -65,7 +65,7 @@ async def get_drive_files(client, drive_id):
 
 
 async def get_file_details(client, user_id, drive_name, filename):
-    response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_item_id).children.with_url(response.odata_next_link).get(request_configuration = request_configuration)
+    response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_item_id).children.with_url(response.odata_next_link).get()
 
 
 async def download_objects(client, user_id, drive_id, target_directory):
