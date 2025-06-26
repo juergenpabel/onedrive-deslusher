@@ -31,7 +31,7 @@ async def get_directory_files(client, drive_id: str, drive_directory_id: str) ->
             if child_item.folder is None:
                 filename2id[child_item.name] = child_item.id
         if response.odata_next_link is not None:
-            response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_directory_id).children.with_url(response.odata_next_link).get(request_configuration = request_configuration)
+            response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_directory_id).children.with_url(response.odata_next_link).get()
         else:
             response = None
     return filename2id
