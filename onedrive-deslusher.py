@@ -67,9 +67,14 @@ async def get_drive_files(client, drive_id):
 
 async def download_objects(client, drive_id, target_directory):
     os_makedirs(f'{target_directory}/objects/', exist_ok=True)
-    dirpath2files = await get_drive_files(client, drive_id)
-    with open(f'{target_directory}/onedrive-files_{drive_id}.json', 'w') as f_files:
-        json_dump(dirpath2files, f_files)
+    dirpath2files = None
+    if os_path_exists(f'{target_directory}/onedrive-files_{drive_id}.json') is True:
+        with open(f'{target_directory}/onedrive-files_{drive_id}.json', 'r') as f_files:
+            dirpath2files = json_load(f_files)
+    else:
+        dirpath2files = await get_drive_files(client, drive_id)
+        with open(f'{target_directory}/onedrive-files_{drive_id}.json', 'w') as f_files:
+            json_dump(dirpath2files, f_files)
     for directory_path, directory_files in dirpath2files.items():
         print(f"  ...{len(directory_files)} files ({directory_path})")
         for filename_name, filename_id in directory_files.items():
@@ -222,6 +227,11 @@ async def main():
             print(f"Error: --user-id and --client-id and --datetime are required for command 'run' (which runs all commands in order)")
             return
         commands = ['get-drives', 'download-objects', 'download-activities', 'deslush']
+    if args.user_id is not None:
+        match = re_compile(r'^[A-Za-z0-9_.]+@([A-Za-z0-9-]+)\.onmicrosoft.com$').match(args.user_id)
+        if match is None:
+                print(f"Error: --user-id must be on a '.onmicrosoft.com' domain (if you are using a top-level-domain for M365, use <user-name>@<tenant-name>.onmicrosoft.com)'")
+                return
     print(f"Using '{args.directory}' for data storage")
     client = None
     for command in commands:
@@ -243,15 +253,7 @@ async def main():
                 if args.user_id is None or args.client_id is None:
                     print(f"Error: --user-id and --client-id are required for command '{command}'")
                     return
-                match = re_compile(r'^[A-Za-z0-9_.]+@([A-Za-z0-9-]+)\.onmicrosoft.com$').match(args.user_id)
-                sharepoint_server = '{name}-my.sharepoint.com'
-                if match is None:
-                    match = re_compile(r'^[A-Za-z0-9_.]+@(.+)$').match(args.user_id)
-                    sharepoint_server = '{name}'
-                if match is None:
-                    print(f"Error: provided user-id '{args.user_id}' has unexpected format (expected <username>@<subdomain>.onmicrosoft.com or <username>@domain.tld)")
-                    return
-                sharepoint_server = sharepoint_server.format(name=match.group(1))
+                sharepoint_server = '{tenant_name}-my.sharepoint.com'.format(tenant_name=re_compile(r'^[A-Za-z0-9_.]+@([A-Za-z0-9-]+)\.onmicrosoft.com$').match(args.user_id).group(1))
                 app = msal_PublicClientApplication(args.client_id, authority='https://login.microsoftonline.com/organizations')
                 session = app.acquire_token_interactive([f'https://{sharepoint_server}/.default'])
                 if 'access_token' not in session:
