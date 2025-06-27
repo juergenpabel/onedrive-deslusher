@@ -68,13 +68,16 @@ async def get_drive_files(client, drive_id):
 async def download_objects(client, drive_id, target_directory):
     os_makedirs(f'{target_directory}/objects/', exist_ok=True)
     dirpath2files = await get_drive_files(client, drive_id)
+    with open(f'{target_directory}/onedrive-files_{drive_id}.json', 'w') as f_files:
+        json_dump(dirpath2files, f_files)
     for directory_path, directory_files in dirpath2files.items():
         print(f"  ...{len(directory_files)} files ({directory_path})")
         for filename_name, filename_id in directory_files.items():
             if os_path_exists(f'{target_directory}/objects/{filename_id}') is False:
                 content = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(filename_id).content.get()
                 with open(f'{target_directory}/objects/{filename_id}', 'wb') as f:
-                    f.write(content)
+                    if content is not None:
+                        f.write(content)
     return dirpath2files
 
 
