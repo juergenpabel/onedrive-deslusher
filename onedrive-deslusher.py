@@ -187,7 +187,8 @@ async def command_deslush(target_directory, slushed_datetime):
                             entries_symlinks.append(entry)
                     if len(entries_symlinks) == 1:
                         if os_path_islink(f'{path}/{entries_symlinks[0]}') is True:
-                            deslushed_dir2filename[path] = entries_symlinks[0]
+                            if onedrive_filename in slushed2filename.keys():
+                                deslushed_dir2filename[path] = entries_symlinks[0]
                     elif len(entries_symlinks) > 1:
                         condensed_dir2count[path] = len(entries_symlinks)
         for directory, filename in deslushed_dir2filename.items():
