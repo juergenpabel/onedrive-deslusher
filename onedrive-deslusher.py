@@ -216,20 +216,21 @@ async def main():
     parser.add_argument('--directory',  default='./data', help="directory path for storing all data ('./data' or somewhere else)")
     parser.add_argument('--client-id',  default=None,     help="M365 client-id/application-id (format is 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', you must register one in M365)")
     args = parser.parse_args()
-    print(f"Using '{args.directory}' for data storage")
     commands = [args.command]
     if args.command == 'run':
         if args.client_id is None or args.datetime is None:
             print(f"Error: --client-id and --datetime are required for command 'run' (which runs all commands in order)")
             return
         commands = ['get-drives', 'download-objects', 'download-activities', 'deslush']
+    print(f"Using '{args.directory}' for data storage")
     client = None
     for command in commands:
         if command in ['get-drives', 'download-objects']:
-            if client is None and args.client_id is None:
-                print(f"Error: --client-id is required for command '{command}'")
-                return
-            client = msgraph_GraphServiceClient(credentials=azure_identity_InteractiveBrowserCredential(client_id=args.client_id), scopes=['Files.Read.All'])
+            if client is None:
+                if args.client_id is None:
+                    print(f"Error: --client-id is required for command '{command}'")
+                    return
+                client = msgraph_GraphServiceClient(credentials=azure_identity_InteractiveBrowserCredential(client_id=args.client_id), scopes=['Files.Read.All'])
         match command:
             case 'get-drives':
                 await command_get_drives(client, args.user_id, args.drive_name, args.directory)
