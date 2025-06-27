@@ -65,11 +65,7 @@ async def get_drive_files(client, drive_id):
     return dirpath2files
 
 
-async def get_file_details(client, user_id, drive_name, filename):
-    response = await client.drives.by_drive_id(drive_id).items.by_drive_item_id(drive_item_id).children.with_url(response.odata_next_link).get()
-
-
-async def download_objects(client, user_id, drive_id, target_directory):
+async def download_objects(client, drive_id, target_directory):
     os_makedirs(f'{target_directory}/objects/', exist_ok=True)
     dirpath2files = await get_drive_files(client, drive_id)
     for directory_path, directory_files in dirpath2files.items():
@@ -93,12 +89,12 @@ async def command_get_drives(client, user_id, drive_name, target_directory):
         json_dump(drive2id, f)
 
 
-async def command_download_files(client, user_id, drive_name, target_directory):
+async def command_download_files(client, drive_name, target_directory):
     os_makedirs(target_directory, exist_ok=True)
     with open(f'{target_directory}/onedrive-drives.json', 'r') as f_drives:
         for drive_name, drive_id in json_load(f_drives).items():
             print(f"Downloading onedrive objects (drive '{drive_name}')...")
-            dirpath2files = await download_objects(client, user_id, drive_id, target_directory)
+            dirpath2files = await download_objects(client, drive_id, target_directory)
             with open(f'{target_directory}/onedrive-files_{drive_name}.json', 'w') as f_files:
                 json_dump(dirpath2files, f_files)
             if os_path_exists(f'{target_directory}/onedrive/{drive_name}-original') is True:
@@ -109,7 +105,7 @@ async def command_download_files(client, user_id, drive_name, target_directory):
                     os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), f'{target_directory}/onedrive/{drive_name}-original/{directory_path}/{filename_name}')
 
 
-async def command_download_activities(session, user_domain, drive_name, target_directory):
+async def command_download_activities(session, sharepoint_server, drive_name, target_directory):
     os_makedirs(target_directory, exist_ok=True)
     with open(f'{target_directory}/onedrive-drives.json', 'r') as f_drives:
         for drive_name, drive_id in json_load(f_drives).items():
@@ -120,7 +116,7 @@ async def command_download_activities(session, user_domain, drive_name, target_d
                     for filename_name, filename_id in directory_files.items():
                         filename_path = f'{directory_path}/{filename_name}'
                         files2activities[filename_path] = []
-                        url = f'https://{user_domain}-my.sharepoint.com/_api/v2.0/drives/{drive_id}/items/{filename_id}/activities'
+                        url = f'https://{sharepoint_server}/_api/v2.0/drives/{drive_id}/items/{filename_id}/activities'
                         activities = requests_get(url, headers={'Authorization': 'Bearer ' + session['access_token']}).json()
                         for activity in activities['value']:
                             if 'action' in activity and 'rename' in activity['action']:
@@ -210,7 +206,7 @@ async def command_deslush(target_directory, slushed_datetime):
 async def main():
     parser = argparse_ArgumentParser(prog='onedrive-deslusher.py')
     parser.add_argument('command')
-    parser.add_argument('--user-id',    required=True,    help="M365 user-id (user@domain.onmicrosoft.com)")
+    parser.add_argument('--user-id',    default=None,     help="M365 user-id (user@domain.onmicrosoft.com)")
     parser.add_argument('--datetime',   default=None,     help="Datetime, after which onedrive file renames should be considered for deslushing (ISO 8601 format: 'yyyy-mm-ddThh:mm:ssZ')")
     parser.add_argument('--drive-name', default=None,     help="OneDrive drive name ('Documents' for english, 'Dokumente' for german, ...")
     parser.add_argument('--directory',  default='./data', help="directory path for storing all data ('./data' or somewhere else)")
@@ -218,8 +214,8 @@ async def main():
     args = parser.parse_args()
     commands = [args.command]
     if args.command == 'run':
-        if args.client_id is None or args.datetime is None:
-            print(f"Error: --client-id and --datetime are required for command 'run' (which runs all commands in order)")
+        if args.user_id is None or args.client_id is None or args.datetime is None:
+            print(f"Error: --user-id and --client-id and --datetime are required for command 'run' (which runs all commands in order)")
             return
         commands = ['get-drives', 'download-objects', 'download-activities', 'deslush']
     print(f"Using '{args.directory}' for data storage")
@@ -233,17 +229,31 @@ async def main():
                 client = msgraph_GraphServiceClient(credentials=azure_identity_InteractiveBrowserCredential(client_id=args.client_id), scopes=['Files.Read.All'])
         match command:
             case 'get-drives':
+                if args.user_id is None:
+                    print(f"Error: --user-id is required for command '{command}'")
+                    return
                 await command_get_drives(client, args.user_id, args.drive_name, args.directory)
             case 'download-objects':
-                await command_download_files(client, args.user_id, args.drive_name, args.directory)
+                await command_download_files(client, args.drive_name, args.directory)
             case 'download-activities':
-                if args.client_id is None:
-                    print(f"Error: --client-id is required for command '{command}'")
+                if args.user_id is None or args.client_id is None:
+                    print(f"Error: --user-id and --client-id are required for command '{command}'")
                     return
-                subdomain = re_compile(r'^[A-Za-z0-9_.]+@(?P<subdomain>[A-Za-z0-9-]+)\.onmicrosoft.com$').match(args.user_id).groupdict().get('subdomain')
+                match = re_compile(r'^[A-Za-z0-9_.]+@([A-Za-z0-9-]+)\.onmicrosoft.com$').match(args.user_id)
+                sharepoint_server = '{name}-my.sharepoint.com'
+                if match is None:
+                    match = re_compile(r'^[A-Za-z0-9_.]+@(.+)$').match(args.user_id)
+                    sharepoint_server = '{name}'
+                if match is None:
+                    print(f"Error: provided user-id '{args.user_id}' has unexpected format (expected <username>@<subdomain>.onmicrosoft.com or <username>@domain.tld)")
+                    return
+                sharepoint_server = sharepoint_server.format(name=match.group(1))
                 app = msal_PublicClientApplication(args.client_id, authority='https://login.microsoftonline.com/organizations')
-                session = app.acquire_token_interactive([f'https://{subdomain}-my.sharepoint.com/.default'])
-                await command_download_activities(session, subdomain, args.drive_name, args.directory)
+                session = app.acquire_token_interactive([f'https://{sharepoint_server}/.default'])
+                if 'access_token' not in session:
+                    print(f"Error: browser-interactive user authentication failed for provided user-id '{args.user_id}'")
+                    return
+                await command_download_activities(session, sharepoint_server, args.drive_name, args.directory)
             case 'deslush':
                 if args.datetime is None:
                     print(f"Error: --datetime is required for command '{command}'")
