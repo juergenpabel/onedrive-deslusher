@@ -165,22 +165,26 @@ async def command_deslush(target_directory, slushed_datetime):
         for directory_path, directory_files in dirpath2files.items():
             for filename_name, filename_id in directory_files.items():
                 filename_path = f'{directory_path}/{filename_name}'
-                filename_main, filename_ext = filename_name.rsplit('.', 1)
                 if filename_path not in slushed2filename.keys():
+                    filename_ext = filename_name.rsplit('.', 1).pop() if '.' in filename_name else ''
                     #print(f"ORIGINAL: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}")
                     if os_path_exists(f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}') is False:
                         os_makedirs(f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}')
-                    os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}', target_is_directory=False)
+                    os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), \
+                                               f'{target_directory}/onedrive/{drive_name}-deslushed/{filename_path}/{filename_id}.{filename_ext}', \
+                                               target_is_directory=False)
                     processed_filenames.append(filename_path)
                 else:
                     original_filename = slushed2filename[filename_path]
                     if original_filename in filename2dirs:
-                        original_filename_main, original_filename_ext = original_filename.rsplit('.', 1)
+                        original_filename_ext = original_filename.rsplit('.', 1).pop() if '.' in original_filename else ''
                         for original_directory_path in filename2dirs[original_filename]:
                             #print(f'DESLUSHED: symlinking {target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}')
                             if os_path_exists(f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}') is False:
                                 os_makedirs(f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}')
-                            os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}', target_is_directory=False)
+                            os_symlink(os_path_abspath(f'{target_directory}/objects/{filename_id}'), \
+                                                       f'{target_directory}/onedrive/{drive_name}-deslushed/{original_directory_path}/{original_filename}/{filename_id}.{original_filename_ext}', \
+                                                       target_is_directory=False)
                             processed_filenames.append(f'{original_directory_path}/{original_filename}')
         condensed_dir2count = {}
         deslushed_dir2filename = {}
